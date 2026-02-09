@@ -116,15 +116,96 @@ fun AddLimitDialog(
                             Divider()
                         }
                     }
-                } else {
-                    Text("App: ${selectedApp?.appName}", style = MaterialTheme.typography.titleMedium)
-                    Spacer(Modifier.height(16.dp))
-                    Text("Time Limit: ${durationMinutes.toInt()} mins (${durationMinutes.toInt() / 60}h ${durationMinutes.toInt() % 60}m)")
+                }
+
+                if (selectedApp != null) {
+                    // Calculation: durationMinutes <-> hours/minutes
+                    val hours = (durationMinutes / 60).toInt()
+                    val minutes = (durationMinutes % 60).toInt()
+                    
+                    var showHourDropdown by remember { mutableStateOf(false) }
+                    var showMinuteDropdown by remember { mutableStateOf(false) }
+
+                    Text(
+                        text = "Set Daily Limit: ${hours}h ${minutes}m",
+                        style = MaterialTheme.typography.bodyLarge,
+                        modifier = Modifier.padding(bottom = 8.dp)
+                    )
+                    
+                    // Dropdowns Row
+                    Row(
+                        modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp),
+                        horizontalArrangement = Arrangement.SpaceEvenly
+                    ) {
+                        // Hour Dropdown
+                        Box {
+                            OutlinedButton(onClick = { showHourDropdown = true }) {
+                                Text("${hours} hr")
+                            }
+                            DropdownMenu(
+                                expanded = showHourDropdown,
+                                onDismissRequest = { showHourDropdown = false }
+                            ) {
+                                (0..23).forEach { h ->
+                                    DropdownMenuItem(
+                                        text = { Text("$h hr") },
+                                        onClick = {
+                                            durationMinutes = (h * 60 + minutes).toFloat()
+                                            showHourDropdown = false
+                                        }
+                                    )
+                                }
+                            }
+                        }
+
+                        // Minute Dropdown
+                        Box {
+                            OutlinedButton(onClick = { showMinuteDropdown = true }) {
+                                Text("${minutes} min")
+                            }
+                            DropdownMenu(
+                                expanded = showMinuteDropdown,
+                                onDismissRequest = { showMinuteDropdown = false }
+                            ) {
+                                (0..59).forEach { m ->
+                                    DropdownMenuItem(
+                                        text = { Text("$m min") },
+                                        onClick = {
+                                            durationMinutes = (hours * 60 + m).toFloat()
+                                            showMinuteDropdown = false
+                                        }
+                                    )
+                                }
+                            }
+                        }
+                    }
+
+                    // Slider with Extended Range (up to 3 hours)
                     Slider(
                         value = durationMinutes,
                         onValueChange = { durationMinutes = it },
-                        valueRange = 1f..300f
+                        valueRange = 1f..180f, 
+                        steps = 179
                     )
+                    
+                    // Fine-tune Buttons
+                    Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.align(Alignment.CenterHorizontally)) {
+                        IconButton(
+                            onClick = { durationMinutes = (durationMinutes - 1).coerceAtLeast(1f) },
+                            modifier = Modifier.size(32.dp)
+                        ) {
+                            Text("-", style = MaterialTheme.typography.headlineSmall)
+                        }
+                        
+                        Spacer(Modifier.width(16.dp))
+                        
+                        IconButton(
+                            onClick = { durationMinutes = (durationMinutes + 1) },
+                            modifier = Modifier.size(32.dp)
+                        ) {
+                            Text("+", style = MaterialTheme.typography.headlineSmall)
+                        }
+                    }
                 }
             }
         },

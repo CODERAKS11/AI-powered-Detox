@@ -43,6 +43,22 @@ class OverlayService : Service(), LifecycleOwner, ViewModelStoreOwner, SavedStat
         savedStateRegistryController.performRestore(null)
         lifecycleRegistry.handleLifecycleEvent(Lifecycle.Event.ON_CREATE)
         windowManager = getSystemService(WINDOW_SERVICE) as WindowManager
+        
+        // Notify State Manager
+        com.example.aidigitaldetox.util.OverlayStateManager.setOverlayActive(true)
+    }
+    
+    // ... onStartCommand ...
+
+    override fun onDestroy() {
+        lifecycleRegistry.handleLifecycleEvent(Lifecycle.Event.ON_DESTROY)
+        store.clear()
+        removeOverlay()
+        
+        // Notify State Manager
+        com.example.aidigitaldetox.util.OverlayStateManager.setOverlayActive(false)
+        
+        super.onDestroy()
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
@@ -172,12 +188,7 @@ class OverlayService : Service(), LifecycleOwner, ViewModelStoreOwner, SavedStat
                 e.printStackTrace()
             }
         }
-    }
-
-    override fun onDestroy() {
-        lifecycleRegistry.handleLifecycleEvent(Lifecycle.Event.ON_DESTROY)
-        store.clear()
-        removeOverlay()
-        super.onDestroy()
+        // CRITICAL: Stop the service so onDestroy is called and state is reset
+        stopSelf()
     }
 }

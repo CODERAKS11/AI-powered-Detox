@@ -31,6 +31,9 @@ class AppMonitorService : AccessibilityService() {
     private var currentRestrictedApp: com.example.aidigitaldetox.data.RestrictedApp? = null
     
     private var monitorJob: kotlinx.coroutines.Job? = null
+    
+    // Track overlay state to prevent spamming startService
+    private var isOverlayShowing = false
 
     override fun onServiceConnected() {
         super.onServiceConnected()
@@ -110,13 +113,12 @@ class AppMonitorService : AccessibilityService() {
         }
     }
 
-    // Track overlay state to prevent spamming startService
-    private var isOverlayShowing = false
+
 
     private fun showBlockOverlay(packageName: String) {
-        if (isOverlayShowing && lastPackageName == packageName) return
+        // Use shared state to prevent spam
+        if (com.example.aidigitaldetox.util.OverlayStateManager.isOverlayActive.value && lastPackageName == packageName) return
 
-        isOverlayShowing = true
         val intent = Intent(this, OverlayService::class.java).apply {
             putExtra("PACKAGE_NAME", packageName)
             addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
@@ -139,7 +141,6 @@ class AppMonitorService : AccessibilityService() {
             // 2. Update state to new app
             lastPackageName = newPackageName
             sessionStartTime = System.currentTimeMillis()
-            isOverlayShowing = false // Reset for new app
             
             // 3. Fetch restriction data for the NEW app (once per session)
             currentRestrictedApp = appLockRepository.getRestrictedApp(newPackageName)
