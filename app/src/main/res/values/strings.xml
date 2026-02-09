@@ -1,0 +1,4 @@
+<resources>
+    <string name="app_name">AI Digital Detox</string>
+    <string name="permission_rationale">This app needs usage access to monitor your digital habits and block distracting apps.</string>
+</resources>
