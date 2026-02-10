@@ -47,7 +47,8 @@ class LockScreenViewModel @Inject constructor(
     }
 
     fun loadChallenge() {
-        if (_challengeState.value != null && !_isLoading.value) return // Prevent reload on recomposition
+        // Force reload every time this is called to ensure we get the latest Phase/Extension level.
+        // removing the check: if (_challengeState.value != null && !_isLoading.value) return 
         
         viewModelScope.launch {
             _isLoading.value = true
@@ -93,24 +94,34 @@ class LockScreenViewModel @Inject constructor(
         }
     }
 
-    fun onChallengeComplete() {
+    fun onChallengeComplete(onSuccess: () -> Unit) {
         val config = _challengeState.value ?: return
         val timeTaken = System.currentTimeMillis() - challengeStartTime
         
         viewModelScope.launch {
-            usageRepository.logChallenge(
-                challengeType = config.type.name,
-                difficulty = config.difficulty.name,
-                success = true,
-                timeTaken = timeTaken
-            )
-            
-            // Reward: Extension
-            val rewardMs = 30 * 1000L // 30 seconds
-            extendLimit(rewardMs) 
-            
-            // Increase extension count in DB for next time
-            appLockRepository.incrementExtensionCount(targetPackageName)
+            try {
+                usageRepository.logChallenge(
+                    challengeType = config.type.name,
+                    difficulty = config.difficulty.name,
+                    success = true,
+                    timeTaken = timeTaken
+                )
+                
+                // Reward: Extension
+                val rewardMs = 30 * 1000L // 30 seconds
+                extendLimit(rewardMs) 
+                
+                // Increase extension count in DB for next time
+                appLockRepository.incrementExtensionCount(targetPackageName)
+                
+                // CRITICAL: Call onSuccess only AFTER DB writes are confirmed
+                onSuccess()
+            } catch (e: Exception) {
+                e.printStackTrace()
+                // If DB fails, should we still unlock? 
+                // Yes, better to fail open than trap the user
+                onSuccess()
+            }
         }
     }
 

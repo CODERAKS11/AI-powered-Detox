@@ -38,20 +38,59 @@ class AppMonitorService : AccessibilityService() {
     override fun onServiceConnected() {
         super.onServiceConnected()
         sessionStartTime = System.currentTimeMillis()
+        
+        // Sync with system usage stats on startup to catch up if service was killed
+        serviceScope.launch {
+            try {
+                // Get fresh list
+                appLockRepository.allRestrictedApps.collect { apps ->
+                    val todayStats = appUsageHelper.getTodayUsageStats().associateBy { it.packageName }
+                    
+                    apps.forEach { restrictedApp ->
+                        val systemStat = todayStats[restrictedApp.packageName]
+                        if (systemStat != null) {
+                            // If system says we used more than DB says, update DB
+                            // This covers the time the service was dead
+                            if (systemStat.usageTimeMillis > restrictedApp.todayUsageMs) {
+                                appLockRepository.updateUsage(restrictedApp.packageName, systemStat.usageTimeMillis)
+                            }
+                        }
+                    }
+                    // Only run once then cancel this collector
+                    this.cancel()
+                }
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
+        }
+        
         startMonitoring()
     }
 
     private fun startMonitoring() {
         monitorJob?.cancel()
         monitorJob = serviceScope.launch {
+            // Launch a parallel job to listen for overlay sequence completion
+            launch {
+                com.example.aidigitaldetox.util.OverlayStateManager.isOverlayActive.collect { isActive ->
+                    if (!isActive) {
+                        // Overlay just closed (User unlocked or gave up)
+                        // Force refresh current app config to get new limits/extensions
+                        lastPackageName?.let { pkg ->
+                            currentRestrictedApp = appLockRepository.getRestrictedApp(pkg)
+                        }
+                    }
+                }
+            }
+
             var ticker = 0
             while (true) {
                 checkRealTimeUsage()
                 
-                // Periodic commit every 60 seconds (approx 300 cycles * 200ms)
-                // This ensures UI updates and data persistence even during long sessions
+                // Aggressive commit: Every 1 second (5 cycles * 200ms)
+                // This ensures UI is practically real-time and blocking is persistent
                 ticker++
-                if (ticker >= 300) {
+                if (ticker >= 5) {
                    lastPackageName?.let { commitUsageToDb(it) }
                    ticker = 0
                 }

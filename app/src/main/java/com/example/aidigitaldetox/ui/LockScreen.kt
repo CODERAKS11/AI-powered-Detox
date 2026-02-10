@@ -64,20 +64,16 @@ fun LockScreen(
 
                     when (config.type) {
                         ChallengeType.MATH -> MathChallengeScreen(config.targetCount) {
-                            viewModel.onChallengeComplete()
-                            onUnlock()
+                            viewModel.onChallengeComplete { onUnlock() }
                         }
                         ChallengeType.STEP -> StepChallengeScreen(config.targetCount) {
-                            viewModel.onChallengeComplete()
-                            onUnlock()
+                            viewModel.onChallengeComplete { onUnlock() }
                         }
                         ChallengeType.SQUAT -> SquatChallengeScreen(config.targetCount) {
-                            viewModel.onChallengeComplete()
-                            onUnlock()
+                            viewModel.onChallengeComplete { onUnlock() }
                         }
                         ChallengeType.MEMORY -> VisualMemoryChallengeScreen(config.targetCount) {
-                            viewModel.onChallengeComplete()
-                            onUnlock()
+                            viewModel.onChallengeComplete { onUnlock() }
                         }
                         else -> onUnlock()
                     }
