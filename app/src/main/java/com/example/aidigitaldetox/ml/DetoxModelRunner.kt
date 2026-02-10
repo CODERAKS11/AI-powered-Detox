@@ -53,48 +53,54 @@ class DetoxModelRunner @Inject constructor(
     private fun runHeuristicInference(features: FloatArray): PredictionResult {
         val timeOfDay = features[0]
         val totalUsage = features[3]
-        val emergencyCount = features[5] * 10 // Denormalized
+
         val reopenGap = features.getOrElse(6) { 1f } * 60 // Denormalized mins
         val challengeSuccess = features.getOrElse(7) { 1f }
+        val zScore = features.getOrElse(8) { 0f } // Z-Score (Anomaly)
 
-        // 1. Calculate Doomscroll Probability
-        var prob = 0.2f // Base probability
+        // 1. Calculate base "Addiction Score" (0.0 - 1.0)
+        var score = 0.0f
         
-        // Late night check (11 PM - 5 AM -> 0.95 - 0.2 approx)
-        if (timeOfDay > 0.95 || timeOfDay < 0.2) prob += 0.4f
+        // Contextual Risk
+        if (timeOfDay > 0.95 || timeOfDay < 0.2) score += 0.2f // Late Night (+0.2)
+        if (reopenGap < 5) score += 0.3f // Rapid Reopen (+0.3)
+        if (totalUsage > 0.8) score += 0.2f // Heavy Daily Usage (+0.2)
         
-        // High usage context
-        if (totalUsage > 0.5) prob += 0.2f // > 6 hours
+        // Statistical Anomaly Risk (The "Mining" Part)
+        if (zScore > 1.0) score += 0.2f // 1 Sigma Deviation (+0.2)
+        if (zScore > 2.0) score += 0.3f // 2 Sigma Deviation (+0.3) - Cumulative
         
-        // Quick reopen (gap < 5 mins)
-        if (reopenGap < 5) prob += 0.3f
-        
-        val doomscrollProb = prob.coerceIn(0f, 1f)
+        // Failure History Penalty
+        if (challengeSuccess < 0.5) score += 0.2f
 
-        // 2. Determine Relapse Risk
-        val risk = when {
-            emergencyCount >= 2 -> RelapseRisk.HIGH
-            doomscrollProb > 0.8 -> RelapseRisk.HIGH
-            challengeSuccess < 0.5 -> RelapseRisk.HIGH // Frequently failing challenges
-            reopenGap < 2 -> RelapseRisk.MEDIUM
+        val finalScore = score.coerceIn(0f, 1f)
+
+        // 2. Progressive Difficulty Assignment
+        // < 0.4 -> EASY
+        // 0.4 - 0.7 -> MEDIUM
+        // > 0.7 -> HARD
+        val difficulty = when {
+            finalScore < 0.4f -> 1 // Easy
+            finalScore < 0.7f -> 2 // Medium
+            else -> 3 // Hard
+        }
+
+        // 3. Relapse Risk Classification
+        val risk = when(difficulty) {
+            3 -> RelapseRisk.HIGH
+            2 -> RelapseRisk.MEDIUM
             else -> RelapseRisk.LOW
         }
 
-        // 3. Estimate Expected Session
-        var expectedMins = 15
-        if (doomscrollProb > 0.7) expectedMins = 45
-        if (timeOfDay > 0.9) expectedMins = 60 
-
-        // 4. Recommend Difficulty
-        // The model output that drives the UI
-        val difficulty = when(risk) {
-            RelapseRisk.HIGH -> 3 // Hard
-            RelapseRisk.MEDIUM -> 2 // Medium
-            RelapseRisk.LOW -> 1 // Easy
+        // 4. Estimate Expected Session
+        val expectedMins = when(difficulty) {
+            3 -> 60
+            2 -> 30
+            else -> 15
         }
 
         return PredictionResult(
-            doomscrollProbability = doomscrollProb,
+            doomscrollProbability = finalScore, // Use score as probability
             expectedSessionMinutes = expectedMins,
             relapseRisk = risk,
             recommendedDifficulty = difficulty

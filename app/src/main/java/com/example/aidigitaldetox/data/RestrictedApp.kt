@@ -11,5 +11,7 @@ data class RestrictedApp(
     val dailyLimitMs: Long,
     val todayUsageMs: Long,
     val isLocked: Boolean,
-    val lastUpdated: Long
+    val lastUpdated: Long,
+    val extensionCount: Int = 0,
+    val warningShown: Boolean = false
 )

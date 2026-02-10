@@ -53,25 +53,33 @@ class LockScreenViewModel @Inject constructor(
             _isLoading.value = true
             isEmergencyMode = false
             
-            // 1. Get Base Risk from ML Model
-            val mlPrediction = repository.getRiskAssessment()
-            
-            // 2. Calculate Hybrid Difficulty
-            // Base (1-3) + Manual Increment (0+)
-            val baseDifficulty = mlPrediction.recommendedDifficulty
-            val hybridDifficultyLevel = (baseDifficulty + currentDifficultyLevel).coerceAtMost(3)
-            
-            // 3. Create Hybrid Prediction Result
-            val hybridPrediction = mlPrediction.copy(
-                recommendedDifficulty = hybridDifficultyLevel,
-                // Boost doomscroll probability if we have manual increments
-                doomscrollProbability = (mlPrediction.doomscrollProbability + (currentDifficultyLevel * 0.1f)).coerceAtMost(1f)
-            )
-            
-            val config = challengeManager.generateChallenge(hybridPrediction)
-            _challengeState.value = config
-            challengeStartTime = System.currentTimeMillis()
-            _isLoading.value = false
+            try {
+                // 1. Fetch current escalation level (extension count) from DB
+                // Use default 0 if DB fails or returns null
+                val appConfig = try {
+                    appLockRepository.getRestrictedApp(targetPackageName)
+                } catch (e: Exception) {
+                    e.printStackTrace()
+                    null
+                }
+                val extensionCount = appConfig?.extensionCount ?: 0
+
+                // 2. Generate Challenge based on Phase logic (Instant, no ML)
+                val config = challengeManager.generateChallenge(extensionCount)
+                _challengeState.value = config
+            } catch (e: Exception) {
+                e.printStackTrace()
+                // Fallback challenge to prevent UI stuck state
+                _challengeState.value = com.example.aidigitaldetox.domain.ChallengeConfig(
+                    com.example.aidigitaldetox.domain.ChallengeType.MATH,
+                    com.example.aidigitaldetox.domain.ChallengeDifficulty.EASY,
+                    "Solve 1 problem (Fallback)",
+                    1
+                )
+            } finally {
+                challengeStartTime = System.currentTimeMillis()
+                _isLoading.value = false
+            }
         }
     }
 
@@ -98,14 +106,15 @@ class LockScreenViewModel @Inject constructor(
             )
             
             // Reward: Extension
-            extendLimit(1) // Challenge completion grants 1 minute
+            val rewardMs = 30 * 1000L // 30 seconds
+            extendLimit(rewardMs) 
             
-            // Increase difficulty for next time
-            currentDifficultyLevel++
+            // Increase extension count in DB for next time
+            appLockRepository.incrementExtensionCount(targetPackageName)
         }
     }
 
-    private suspend fun extendLimit(minutes: Long) {
-         appLockRepository.extendLimit(targetPackageName, minutes * 60 * 1000)
+    private suspend fun extendLimit(addedTimeMs: Long) {
+         appLockRepository.extendLimit(targetPackageName, addedTimeMs)
     }
 }

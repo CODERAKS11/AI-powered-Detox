@@ -28,7 +28,9 @@ class AppLockRepository @Inject constructor(
                 dailyLimitMs = limitMs, 
                 todayUsageMs = initialUsage, 
                 isLocked = isLocked, 
-                lastUpdated = System.currentTimeMillis()
+                lastUpdated = System.currentTimeMillis(),
+                extensionCount = 0,
+                warningShown = false
             )
         restrictedAppDao.insertOrUpdate(app)
     }
@@ -74,5 +76,13 @@ class AppLockRepository @Inject constructor(
 
     suspend fun getRestrictedApp(packageName: String): RestrictedApp? {
         return restrictedAppDao.getRestrictedApp(packageName)
+    }
+
+    suspend fun incrementExtensionCount(packageName: String) {
+        restrictedAppDao.incrementExtensionCount(packageName)
+    }
+
+    suspend fun setWarningShown(packageName: String) {
+        restrictedAppDao.setWarningShown(packageName)
     }
 }

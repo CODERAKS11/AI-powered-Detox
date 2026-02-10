@@ -302,29 +302,49 @@ fun SquatChallengeScreen(
 
 @Composable
 fun VisualMemoryChallengeScreen(
-    level: Int,
+    targetCount: Int,
     onComplete: () -> Unit
 ) {
-    var sequence by remember { mutableStateOf(generateSequence(level)) }
+    var roundsCompleted by remember { mutableIntStateOf(0) }
+    // Default sequence length is 4 for visibility
+    var sequence by remember { mutableStateOf(generateSequence(4)) }
     var userSequence by remember { mutableStateOf(listOf<Int>()) }
     var showingSequence by remember { mutableStateOf(true) }
     var error by remember { mutableStateOf(false) }
-    var retryTrigger by remember { mutableIntStateOf(0) } // Forces recomposition of LaunchedEffect
+    var retryTrigger by remember { mutableIntStateOf(0) } // For replaying pattern on error
+    var nextRoundTrigger by remember { mutableIntStateOf(0) } // For generating next round
 
-    // Effect to show the sequence. Runs when sequence changes OR retryTrigger increments.
-    LaunchedEffect(sequence, retryTrigger) {
+    // Success Check
+    fun checkSuccess() {
+        if (roundsCompleted + 1 >= targetCount) {
+             onComplete()
+        } else {
+             roundsCompleted++
+             userSequence = listOf()
+             showingSequence = true
+             sequence = generateSequence(4) // New random sequence
+             nextRoundTrigger++
+        }
+    }
+
+    // Effect to show the sequence. Runs when sequence changes or triggers fire.
+    LaunchedEffect(nextRoundTrigger, retryTrigger) {
         userSequence = listOf() // Clear input
         showingSequence = true
         error = false
         
         delay(1000)
-        // Flash them 
-        delay(2000)
+        // Flash them (UI relies on showingSequence state)
+        delay(2000) // Show for 2 seconds
         
         showingSequence = false
     }
 
     Column(horizontalAlignment = Alignment.CenterHorizontally) {
+        // Progress Indicator
+        Text("Round ${roundsCompleted + 1} / $targetCount", color = Color.Gray, fontSize = 16.sp)
+        Spacer(modifier = Modifier.height(8.dp))
+
         val title = when {
             showingSequence -> "Memorize Pattern!"
             error -> "Wrong! Watching again..."
@@ -363,7 +383,7 @@ fun VisualMemoryChallengeScreen(
                                     retryTrigger++ 
                                 } else if (newSeq.size == sequence.size) {
                                     if (newSeq.toSet() == sequence.toSet()) {
-                                        onComplete()
+                                        checkSuccess()
                                     }
                                 }
                             }

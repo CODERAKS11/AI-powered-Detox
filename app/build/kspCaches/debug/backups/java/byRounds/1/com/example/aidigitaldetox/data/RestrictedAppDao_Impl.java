@@ -39,13 +39,17 @@ public final class RestrictedAppDao_Impl implements RestrictedAppDao {
 
   private final SharedSQLiteStatement __preparedStmtOfUpdateUsageAndLock;
 
+  private final SharedSQLiteStatement __preparedStmtOfIncrementExtensionCount;
+
+  private final SharedSQLiteStatement __preparedStmtOfSetWarningShown;
+
   public RestrictedAppDao_Impl(@NonNull final RoomDatabase __db) {
     this.__db = __db;
     this.__insertionAdapterOfRestrictedApp = new EntityInsertionAdapter<RestrictedApp>(__db) {
       @Override
       @NonNull
       protected String createQuery() {
-        return "INSERT OR REPLACE INTO `restricted_apps` (`packageName`,`appName`,`dailyLimitMs`,`todayUsageMs`,`isLocked`,`lastUpdated`) VALUES (?,?,?,?,?,?)";
+        return "INSERT OR REPLACE INTO `restricted_apps` (`packageName`,`appName`,`dailyLimitMs`,`todayUsageMs`,`isLocked`,`lastUpdated`,`extensionCount`,`warningShown`) VALUES (?,?,?,?,?,?,?,?)";
       }
 
       @Override
@@ -58,6 +62,9 @@ public final class RestrictedAppDao_Impl implements RestrictedAppDao {
         final int _tmp = entity.isLocked() ? 1 : 0;
         statement.bindLong(5, _tmp);
         statement.bindLong(6, entity.getLastUpdated());
+        statement.bindLong(7, entity.getExtensionCount());
+        final int _tmp_1 = entity.getWarningShown() ? 1 : 0;
+        statement.bindLong(8, _tmp_1);
       }
     };
     this.__deletionAdapterOfRestrictedApp = new EntityDeletionOrUpdateAdapter<RestrictedApp>(__db) {
@@ -78,6 +85,22 @@ public final class RestrictedAppDao_Impl implements RestrictedAppDao {
       @NonNull
       public String createQuery() {
         final String _query = "UPDATE restricted_apps SET todayUsageMs = ?, isLocked = ?, lastUpdated = ? WHERE packageName = ?";
+        return _query;
+      }
+    };
+    this.__preparedStmtOfIncrementExtensionCount = new SharedSQLiteStatement(__db) {
+      @Override
+      @NonNull
+      public String createQuery() {
+        final String _query = "UPDATE restricted_apps SET extensionCount = extensionCount + 1 WHERE packageName = ?";
+        return _query;
+      }
+    };
+    this.__preparedStmtOfSetWarningShown = new SharedSQLiteStatement(__db) {
+      @Override
+      @NonNull
+      public String createQuery() {
+        final String _query = "UPDATE restricted_apps SET warningShown = 1 WHERE packageName = ?";
         return _query;
       }
     };
@@ -155,6 +178,58 @@ public final class RestrictedAppDao_Impl implements RestrictedAppDao {
   }
 
   @Override
+  public Object incrementExtensionCount(final String packageName,
+      final Continuation<? super Unit> $completion) {
+    return CoroutinesRoom.execute(__db, true, new Callable<Unit>() {
+      @Override
+      @NonNull
+      public Unit call() throws Exception {
+        final SupportSQLiteStatement _stmt = __preparedStmtOfIncrementExtensionCount.acquire();
+        int _argIndex = 1;
+        _stmt.bindString(_argIndex, packageName);
+        try {
+          __db.beginTransaction();
+          try {
+            _stmt.executeUpdateDelete();
+            __db.setTransactionSuccessful();
+            return Unit.INSTANCE;
+          } finally {
+            __db.endTransaction();
+          }
+        } finally {
+          __preparedStmtOfIncrementExtensionCount.release(_stmt);
+        }
+      }
+    }, $completion);
+  }
+
+  @Override
+  public Object setWarningShown(final String packageName,
+      final Continuation<? super Unit> $completion) {
+    return CoroutinesRoom.execute(__db, true, new Callable<Unit>() {
+      @Override
+      @NonNull
+      public Unit call() throws Exception {
+        final SupportSQLiteStatement _stmt = __preparedStmtOfSetWarningShown.acquire();
+        int _argIndex = 1;
+        _stmt.bindString(_argIndex, packageName);
+        try {
+          __db.beginTransaction();
+          try {
+            _stmt.executeUpdateDelete();
+            __db.setTransactionSuccessful();
+            return Unit.INSTANCE;
+          } finally {
+            __db.endTransaction();
+          }
+        } finally {
+          __preparedStmtOfSetWarningShown.release(_stmt);
+        }
+      }
+    }, $completion);
+  }
+
+  @Override
   public Object getRestrictedApp(final String packageName,
       final Continuation<? super RestrictedApp> $completion) {
     final String _sql = "SELECT * FROM restricted_apps WHERE packageName = ?";
@@ -174,6 +249,8 @@ public final class RestrictedAppDao_Impl implements RestrictedAppDao {
           final int _cursorIndexOfTodayUsageMs = CursorUtil.getColumnIndexOrThrow(_cursor, "todayUsageMs");
           final int _cursorIndexOfIsLocked = CursorUtil.getColumnIndexOrThrow(_cursor, "isLocked");
           final int _cursorIndexOfLastUpdated = CursorUtil.getColumnIndexOrThrow(_cursor, "lastUpdated");
+          final int _cursorIndexOfExtensionCount = CursorUtil.getColumnIndexOrThrow(_cursor, "extensionCount");
+          final int _cursorIndexOfWarningShown = CursorUtil.getColumnIndexOrThrow(_cursor, "warningShown");
           final RestrictedApp _result;
           if (_cursor.moveToFirst()) {
             final String _tmpPackageName;
@@ -190,7 +267,13 @@ public final class RestrictedAppDao_Impl implements RestrictedAppDao {
             _tmpIsLocked = _tmp != 0;
             final long _tmpLastUpdated;
             _tmpLastUpdated = _cursor.getLong(_cursorIndexOfLastUpdated);
-            _result = new RestrictedApp(_tmpPackageName,_tmpAppName,_tmpDailyLimitMs,_tmpTodayUsageMs,_tmpIsLocked,_tmpLastUpdated);
+            final int _tmpExtensionCount;
+            _tmpExtensionCount = _cursor.getInt(_cursorIndexOfExtensionCount);
+            final boolean _tmpWarningShown;
+            final int _tmp_1;
+            _tmp_1 = _cursor.getInt(_cursorIndexOfWarningShown);
+            _tmpWarningShown = _tmp_1 != 0;
+            _result = new RestrictedApp(_tmpPackageName,_tmpAppName,_tmpDailyLimitMs,_tmpTodayUsageMs,_tmpIsLocked,_tmpLastUpdated,_tmpExtensionCount,_tmpWarningShown);
           } else {
             _result = null;
           }
@@ -219,6 +302,8 @@ public final class RestrictedAppDao_Impl implements RestrictedAppDao {
           final int _cursorIndexOfTodayUsageMs = CursorUtil.getColumnIndexOrThrow(_cursor, "todayUsageMs");
           final int _cursorIndexOfIsLocked = CursorUtil.getColumnIndexOrThrow(_cursor, "isLocked");
           final int _cursorIndexOfLastUpdated = CursorUtil.getColumnIndexOrThrow(_cursor, "lastUpdated");
+          final int _cursorIndexOfExtensionCount = CursorUtil.getColumnIndexOrThrow(_cursor, "extensionCount");
+          final int _cursorIndexOfWarningShown = CursorUtil.getColumnIndexOrThrow(_cursor, "warningShown");
           final List<RestrictedApp> _result = new ArrayList<RestrictedApp>(_cursor.getCount());
           while (_cursor.moveToNext()) {
             final RestrictedApp _item;
@@ -236,7 +321,13 @@ public final class RestrictedAppDao_Impl implements RestrictedAppDao {
             _tmpIsLocked = _tmp != 0;
             final long _tmpLastUpdated;
             _tmpLastUpdated = _cursor.getLong(_cursorIndexOfLastUpdated);
-            _item = new RestrictedApp(_tmpPackageName,_tmpAppName,_tmpDailyLimitMs,_tmpTodayUsageMs,_tmpIsLocked,_tmpLastUpdated);
+            final int _tmpExtensionCount;
+            _tmpExtensionCount = _cursor.getInt(_cursorIndexOfExtensionCount);
+            final boolean _tmpWarningShown;
+            final int _tmp_1;
+            _tmp_1 = _cursor.getInt(_cursorIndexOfWarningShown);
+            _tmpWarningShown = _tmp_1 != 0;
+            _item = new RestrictedApp(_tmpPackageName,_tmpAppName,_tmpDailyLimitMs,_tmpTodayUsageMs,_tmpIsLocked,_tmpLastUpdated,_tmpExtensionCount,_tmpWarningShown);
             _result.add(_item);
           }
           return _result;

@@ -14,7 +14,7 @@ import com.example.aidigitaldetox.util.Converters
         EmergencyLog::class,
         RestrictedApp::class
     ],
-    version = 4,
+    version = 5,
     exportSchema = false
 )
 @TypeConverters(Converters::class)

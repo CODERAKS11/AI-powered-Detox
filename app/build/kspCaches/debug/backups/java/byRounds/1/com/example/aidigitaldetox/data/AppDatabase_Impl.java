@@ -33,7 +33,7 @@ public final class AppDatabase_Impl extends AppDatabase {
   @Override
   @NonNull
   protected SupportSQLiteOpenHelper createOpenHelper(@NonNull final DatabaseConfiguration config) {
-    final SupportSQLiteOpenHelper.Callback _openCallback = new RoomOpenHelper(config, new RoomOpenHelper.Delegate(4) {
+    final SupportSQLiteOpenHelper.Callback _openCallback = new RoomOpenHelper(config, new RoomOpenHelper.Delegate(5) {
       @Override
       public void createAllTables(@NonNull final SupportSQLiteDatabase db) {
         db.execSQL("CREATE TABLE IF NOT EXISTS `usage_logs` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `packageName` TEXT NOT NULL, `appName` TEXT NOT NULL, `date` TEXT NOT NULL, `durationInMillis` INTEGER NOT NULL, `openCount` INTEGER NOT NULL)");
@@ -41,9 +41,9 @@ public final class AppDatabase_Impl extends AppDatabase {
         db.execSQL("CREATE TABLE IF NOT EXISTS `app_sessions` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `packageName` TEXT NOT NULL, `startTime` INTEGER NOT NULL, `endTime` INTEGER NOT NULL, `duration` INTEGER NOT NULL)");
         db.execSQL("CREATE TABLE IF NOT EXISTS `challenge_logs` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `timestamp` INTEGER NOT NULL, `challengeType` TEXT NOT NULL, `difficulty` TEXT NOT NULL, `success` INTEGER NOT NULL, `timeTaken` INTEGER NOT NULL)");
         db.execSQL("CREATE TABLE IF NOT EXISTS `emergency_logs` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `timestamp` INTEGER NOT NULL, `packageName` TEXT NOT NULL)");
-        db.execSQL("CREATE TABLE IF NOT EXISTS `restricted_apps` (`packageName` TEXT NOT NULL, `appName` TEXT NOT NULL, `dailyLimitMs` INTEGER NOT NULL, `todayUsageMs` INTEGER NOT NULL, `isLocked` INTEGER NOT NULL, `lastUpdated` INTEGER NOT NULL, PRIMARY KEY(`packageName`))");
+        db.execSQL("CREATE TABLE IF NOT EXISTS `restricted_apps` (`packageName` TEXT NOT NULL, `appName` TEXT NOT NULL, `dailyLimitMs` INTEGER NOT NULL, `todayUsageMs` INTEGER NOT NULL, `isLocked` INTEGER NOT NULL, `lastUpdated` INTEGER NOT NULL, `extensionCount` INTEGER NOT NULL, `warningShown` INTEGER NOT NULL, PRIMARY KEY(`packageName`))");
         db.execSQL("CREATE TABLE IF NOT EXISTS room_master_table (id INTEGER PRIMARY KEY,identity_hash TEXT)");
-        db.execSQL("INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, 'c295aa5e48f6d69166b099465881b01d')");
+        db.execSQL("INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, '517e49002e33940fad294df15f63a948')");
       }
 
       @Override
@@ -175,13 +175,15 @@ public final class AppDatabase_Impl extends AppDatabase {
                   + " Expected:\n" + _infoEmergencyLogs + "\n"
                   + " Found:\n" + _existingEmergencyLogs);
         }
-        final HashMap<String, TableInfo.Column> _columnsRestrictedApps = new HashMap<String, TableInfo.Column>(6);
+        final HashMap<String, TableInfo.Column> _columnsRestrictedApps = new HashMap<String, TableInfo.Column>(8);
         _columnsRestrictedApps.put("packageName", new TableInfo.Column("packageName", "TEXT", true, 1, null, TableInfo.CREATED_FROM_ENTITY));
         _columnsRestrictedApps.put("appName", new TableInfo.Column("appName", "TEXT", true, 0, null, TableInfo.CREATED_FROM_ENTITY));
         _columnsRestrictedApps.put("dailyLimitMs", new TableInfo.Column("dailyLimitMs", "INTEGER", true, 0, null, TableInfo.CREATED_FROM_ENTITY));
         _columnsRestrictedApps.put("todayUsageMs", new TableInfo.Column("todayUsageMs", "INTEGER", true, 0, null, TableInfo.CREATED_FROM_ENTITY));
         _columnsRestrictedApps.put("isLocked", new TableInfo.Column("isLocked", "INTEGER", true, 0, null, TableInfo.CREATED_FROM_ENTITY));
         _columnsRestrictedApps.put("lastUpdated", new TableInfo.Column("lastUpdated", "INTEGER", true, 0, null, TableInfo.CREATED_FROM_ENTITY));
+        _columnsRestrictedApps.put("extensionCount", new TableInfo.Column("extensionCount", "INTEGER", true, 0, null, TableInfo.CREATED_FROM_ENTITY));
+        _columnsRestrictedApps.put("warningShown", new TableInfo.Column("warningShown", "INTEGER", true, 0, null, TableInfo.CREATED_FROM_ENTITY));
         final HashSet<TableInfo.ForeignKey> _foreignKeysRestrictedApps = new HashSet<TableInfo.ForeignKey>(0);
         final HashSet<TableInfo.Index> _indicesRestrictedApps = new HashSet<TableInfo.Index>(0);
         final TableInfo _infoRestrictedApps = new TableInfo("restricted_apps", _columnsRestrictedApps, _foreignKeysRestrictedApps, _indicesRestrictedApps);
@@ -193,7 +195,7 @@ public final class AppDatabase_Impl extends AppDatabase {
         }
         return new RoomOpenHelper.ValidationResult(true, null);
       }
-    }, "c295aa5e48f6d69166b099465881b01d", "58c027221569db72a9bd23c4e88f5198");
+    }, "517e49002e33940fad294df15f63a948", "342ebfeab6fc7b93e4291cc7c9269c5a");
     final SupportSQLiteOpenHelper.Configuration _sqliteConfig = SupportSQLiteOpenHelper.Configuration.builder(config.context).name(config.name).callback(_openCallback).build();
     final SupportSQLiteOpenHelper _helper = config.sqliteOpenHelperFactory.create(_sqliteConfig);
     return _helper;
