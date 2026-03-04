@@ -39,6 +39,8 @@ public final class RestrictedAppDao_Impl implements RestrictedAppDao {
 
   private final SharedSQLiteStatement __preparedStmtOfUpdateUsageAndLock;
 
+  private final SharedSQLiteStatement __preparedStmtOfResetDailyStats;
+
   private final SharedSQLiteStatement __preparedStmtOfIncrementExtensionCount;
 
   private final SharedSQLiteStatement __preparedStmtOfSetWarningShown;
@@ -85,6 +87,14 @@ public final class RestrictedAppDao_Impl implements RestrictedAppDao {
       @NonNull
       public String createQuery() {
         final String _query = "UPDATE restricted_apps SET todayUsageMs = ?, isLocked = ?, lastUpdated = ? WHERE packageName = ?";
+        return _query;
+      }
+    };
+    this.__preparedStmtOfResetDailyStats = new SharedSQLiteStatement(__db) {
+      @Override
+      @NonNull
+      public String createQuery() {
+        final String _query = "UPDATE restricted_apps SET todayUsageMs = ?, isLocked = 0, extensionCount = 0, warningShown = 0, lastUpdated = ? WHERE packageName = ?";
         return _query;
       }
     };
@@ -172,6 +182,36 @@ public final class RestrictedAppDao_Impl implements RestrictedAppDao {
           }
         } finally {
           __preparedStmtOfUpdateUsageAndLock.release(_stmt);
+        }
+      }
+    }, $completion);
+  }
+
+  @Override
+  public Object resetDailyStats(final String packageName, final long usage, final long lastUpdated,
+      final Continuation<? super Unit> $completion) {
+    return CoroutinesRoom.execute(__db, true, new Callable<Unit>() {
+      @Override
+      @NonNull
+      public Unit call() throws Exception {
+        final SupportSQLiteStatement _stmt = __preparedStmtOfResetDailyStats.acquire();
+        int _argIndex = 1;
+        _stmt.bindLong(_argIndex, usage);
+        _argIndex = 2;
+        _stmt.bindLong(_argIndex, lastUpdated);
+        _argIndex = 3;
+        _stmt.bindString(_argIndex, packageName);
+        try {
+          __db.beginTransaction();
+          try {
+            _stmt.executeUpdateDelete();
+            __db.setTransactionSuccessful();
+            return Unit.INSTANCE;
+          } finally {
+            __db.endTransaction();
+          }
+        } finally {
+          __preparedStmtOfResetDailyStats.release(_stmt);
         }
       }
     }, $completion);

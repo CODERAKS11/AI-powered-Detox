@@ -47,7 +47,6 @@ fun RestrictedAppsScreen(
             items(restrictedApps) { app ->
                 RestrictedAppItem(
                     app = app, 
-                    onDelete = { viewModel.removeLimit(app.packageName) },
                     onAdjustLimit = { delta -> viewModel.adjustLimit(app.packageName, delta) }
                 )
                 Spacer(Modifier.height(8.dp))
@@ -230,7 +229,6 @@ fun AddLimitDialog(
 @Composable
 fun RestrictedAppItem(
     app: RestrictedApp, 
-    onDelete: () -> Unit,
     onAdjustLimit: (Int) -> Unit
 ) {
     Card(
@@ -242,13 +240,9 @@ fun RestrictedAppItem(
         Column(Modifier.padding(16.dp).fillMaxWidth()) {
             Row(
                 Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.SpaceBetween
+                verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(app.appName, style = MaterialTheme.typography.titleMedium)
-                IconButton(onClick = onDelete) {
-                    Icon(Icons.Default.Delete, contentDescription = "Remove Limit", tint = MaterialTheme.colorScheme.error)
-                }
             }
             
             Spacer(Modifier.height(8.dp))

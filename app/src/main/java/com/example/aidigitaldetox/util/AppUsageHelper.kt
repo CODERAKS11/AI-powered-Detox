@@ -30,14 +30,16 @@ class AppUsageHelper @Inject constructor(
      */
     fun getTodayUsageStats(): List<AppUsageInfo> {
 
+        val offsetMs = 12L * 60 * 60 * 1000
         val calendar = Calendar.getInstance().apply {
+            timeInMillis = System.currentTimeMillis() - offsetMs
             set(Calendar.HOUR_OF_DAY, 0)
             set(Calendar.MINUTE, 0)
             set(Calendar.SECOND, 0)
             set(Calendar.MILLISECOND, 0)
         }
 
-        val startTime = calendar.timeInMillis
+        val startTime = calendar.timeInMillis + offsetMs
         val endTime = System.currentTimeMillis()
 
         // Use queryEvents for precise calculation.

@@ -52,11 +52,7 @@ class RestrictedAppsViewModel @Inject constructor(
         }
     }
 
-    fun removeLimit(packageName: String) {
-        viewModelScope.launch {
-            appLockRepository.removeRestriction(packageName)
-        }
-    }
+
 
     fun adjustLimit(packageName: String, deltaMinutes: Int) {
         val currentApp = _restrictedApps.value.find { it.packageName == packageName } ?: return

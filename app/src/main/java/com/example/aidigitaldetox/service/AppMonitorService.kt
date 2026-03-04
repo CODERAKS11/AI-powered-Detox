@@ -35,9 +35,36 @@ class AppMonitorService : AccessibilityService() {
     // Track overlay state to prevent spamming startService
     private var isOverlayShowing = false
 
+    private var isScreenOn = true
+
+    private val screenReceiver = object : android.content.BroadcastReceiver() {
+        override fun onReceive(context: android.content.Context?, intent: Intent?) {
+            when (intent?.action) {
+                Intent.ACTION_SCREEN_OFF -> {
+                    isScreenOn = false
+                    // Commit any pending usage before screen went off
+                    lastPackageName?.let { pkg ->
+                        serviceScope.launch { commitUsageToDb(pkg) }
+                    }
+                }
+                Intent.ACTION_SCREEN_ON -> {
+                    isScreenOn = true
+                    // Reset start time so we don't count the off time
+                    sessionStartTime = System.currentTimeMillis()
+                }
+            }
+        }
+    }
+
     override fun onServiceConnected() {
         super.onServiceConnected()
         sessionStartTime = System.currentTimeMillis()
+        
+        val filter = android.content.IntentFilter().apply {
+            addAction(Intent.ACTION_SCREEN_ON)
+            addAction(Intent.ACTION_SCREEN_OFF)
+        }
+        registerReceiver(screenReceiver, filter)
         
         // Sync with system usage stats on startup to catch up if service was killed
         serviceScope.launch {
@@ -181,12 +208,47 @@ class AppMonitorService : AccessibilityService() {
 
     private suspend fun checkRealTimeUsage() {
         val packageName = lastPackageName ?: return
-        val app = currentRestrictedApp ?: return // No restriction
+        var app = currentRestrictedApp ?: return // No restriction
         
         // Skip checking if it's our own app or launcher/system ui
         if (packageName == this.packageName || packageName == "com.android.systemui") return
 
+        if (!isScreenOn) {
+            // Screen is off. Advance session start time without committing,
+            // effectively ignoring time spent with the screen off.
+            sessionStartTime = System.currentTimeMillis()
+            return
+        }
+
         val now = System.currentTimeMillis()
+        
+        // Detect day rollover during an active session (boundary at 12 PM Noon)
+        val offsetMs = 12L * 60 * 60 * 1000
+        val startCal = java.util.Calendar.getInstance().apply { timeInMillis = sessionStartTime - offsetMs }
+        val currentCal = java.util.Calendar.getInstance().apply { timeInMillis = now - offsetMs }
+        if (startCal.get(java.util.Calendar.DAY_OF_YEAR) != currentCal.get(java.util.Calendar.DAY_OF_YEAR) ||
+            startCal.get(java.util.Calendar.YEAR) != currentCal.get(java.util.Calendar.YEAR)) {
+            // Day changed at 12 PM Noon! Commit what we had for yesterday, then reset session
+            val boundaryTimeReal = currentCal.apply {
+                set(java.util.Calendar.HOUR_OF_DAY, 0)
+                set(java.util.Calendar.MINUTE, 0)
+                set(java.util.Calendar.SECOND, 0)
+                set(java.util.Calendar.MILLISECOND, 0)
+            }.timeInMillis + offsetMs
+            
+            val usageYesterday = boundaryTimeReal - sessionStartTime
+            
+            if (usageYesterday > 0) {
+               // We don't commit it directly here to avoid complex logic, 
+               // Instead, rely on getRestrictedApp to reset it.
+            }
+            
+            // Force a DB reload which will trigger the resetDailyStats logic in repository
+            app = appLockRepository.getRestrictedApp(packageName) ?: return
+            currentRestrictedApp = app
+            sessionStartTime = now // Start fresh for the new day
+        }
+
         val sessionDuration = now - sessionStartTime
         
         // Calculate total usage: Previous Usage + Current Session
@@ -298,6 +360,11 @@ class AppMonitorService : AccessibilityService() {
 
     override fun onDestroy() {
         super.onDestroy()
+        try {
+            unregisterReceiver(screenReceiver)
+        } catch (e: Exception) {
+            // Ignore if not registered
+        }
         serviceScope.cancel()
     }
 }

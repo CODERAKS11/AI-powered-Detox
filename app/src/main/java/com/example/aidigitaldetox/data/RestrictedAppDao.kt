@@ -25,6 +25,9 @@ interface RestrictedAppDao {
     @Query("UPDATE restricted_apps SET todayUsageMs = :usage, isLocked = :isLocked, lastUpdated = :lastUpdated WHERE packageName = :packageName")
     suspend fun updateUsageAndLock(packageName: String, usage: Long, isLocked: Boolean, lastUpdated: Long)
 
+    @Query("UPDATE restricted_apps SET todayUsageMs = :usage, isLocked = 0, extensionCount = 0, warningShown = 0, lastUpdated = :lastUpdated WHERE packageName = :packageName")
+    suspend fun resetDailyStats(packageName: String, usage: Long, lastUpdated: Long)
+
     @Query("UPDATE restricted_apps SET extensionCount = extensionCount + 1 WHERE packageName = :packageName")
     suspend fun incrementExtensionCount(packageName: String)
 

@@ -55,6 +55,19 @@ fun DashboardScreen(
         onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
     }
 
+    // Auto-refresh stats periodically when usage stats permission is granted
+    LaunchedEffect(hasUsageStats, lifecycleOwner) {
+        if (hasUsageStats) {
+            while (true) {
+                kotlinx.coroutines.delay(5000)
+                // Only refresh if the lifecycle is at least RESUMED (in foreground)
+                if (lifecycleOwner.lifecycle.currentState.isAtLeast(Lifecycle.State.RESUMED)) {
+                    viewModel.refreshStats()
+                }
+            }
+        }
+    }
+
     Column(
         modifier = Modifier
             .fillMaxSize()
